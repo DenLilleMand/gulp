@@ -1,0 +1,181 @@
+This file makes alot more sense if we take the test gulpfile  and gulpfile.config into account. 
+
+Setting up gulp:
+Install Gulp and Bower globally:
+sudo npm install -g gulp bower
+
+Installing gulp locally:
+sudo npm install --save-dev gulp
+
+Manually create the gulpfile.js
+
+---------------------------------------------------------------------------
+Options explanation:
+When we install stuff with npm and run:
+(should fix the sudo part btw)
+sudo npm install --save <package-name>  
+we put this into our dependencies in our package.json file,
+while if we run:
+sudo npm install --save-dev <package-name> we same them into our dev-dependencies in package.json.
+The difference is that dev, is only used during development, while dependencies is our runtime dependencies,
+a confusion of these terms could lead to missing a dependency when launching the app on a server.
+
+---------------------------------------------------------------------------
+Some of the hinting/linting:
+
+sudo npm install gulp-jshint gulp-jscs --save-dev
+
+
+.jshintrc & .jscsrc is our rule files for jshint and JSSC.
+
+jshint write out the code of the error, if we want jshint to ignore some error, we can add
+in comments above of the bracket of code: /*jshint -WO33 */  if the code is WO33
+
+
+---------------------------------------------------------------------------
+less preprocessing:
+
+sudo npm install --save-dev gulp-less gulp-autoprefixer
+
+
+When we did css preprocessing it wasnt just about the preprocessing, we allso
+did graceful error handling with plumber, moved the files to a destination,
+loaded the file src and dest from a seperate file, and we added vendor prefixes automatically aswell.
+----------------------------------------------------------------------------
+Automate adding CSS and Javascript references in html
+
+-Wiredep & Bower : Gather the bower files and inject them into html.
+-HTML injection/gulp-inject : inject CSS into HTML. 
+-post install script: Run wiredep after bower install.
+
+
+
+Wiredep is the big player here, it goes through the dependency list that Bower has, and then we mark the index.html file with comment sections
+that tell where to inject the dependencies. forexample: <!-- bower:type -->  where type is either JS or CSS this is just the 
+vendor css though, bower doesn't know anything about our custom css so we have to do that with gulp-inject. which has pretty similar syntax.
+
+Something cool is that in our .bowerrc file, there is a script option where we're able to tell bower, that each time anything installs we have to run the build task
+that injects html and css, pretty awesome. One of the "problems" for this is that the entire build task with styles etc. is being called each time we do a bower install,
+if our build system has a long task this makes no sense, how to fix this would be to make one task that bower can call that ONLY injects the bower dependencies, and then make a 
+    seperate task that can be called manually that does everything.
+recap of example:
+gulp.task('wiredep', function(){
+	log('Wiring the bower dependencies into html');
+	/*
+	 *get stream from wiredep
+	 */
+	var wiredep = require('wiredep').stream;
+	/*
+	 *config is the file paths, so basically this is just a bunch of paths, the question is if 
+	 *the paths we give along has to be bower, we have to look at the wiredep documentation a bit further.
+	 */
+	var options = config.getWiredepDefaultOptions();
+
+	return gulp
+		/*
+		 *config.index = the path to index.html(this is a single page application)
+		 */
+		.src(config.index)
+		/*
+		 *inject bower files into html
+		 */
+		.pipe(wiredep(options))
+		/*
+		 *inject javascript into html
+		 */
+		.pipe($.inject(gulp.src(config.js)))
+		/*
+		 *giving it a destination
+		 */
+		.pipe(gulp.dest(config.client));
+});
+
+
+
+-----------------------------------------------------------------------------------
+Serving your dev build:
+
+What we want:
+*Prepare the styles and html
+*Manually restart node server when change happens
+
+Going to make a task called serve-dev, its going to:
+*Prepare code
+*Run the node server
+*Restart on node changes. 
+
+There is a great plugin called nodemon that makes us handle(nodemon allso adds support for running a task when one of its events launch):
+*Restart node server
+*Watch file changes
+*Handle events
+
+to install it: sudo npm install --save-dev gulp-nodemon
+
+
+
+
+----------------------------------------------------------------------------------
+Keeping your browser in sync:
+automatic browser load(and reload)
+We're allready launching the server, but we want to launch the browser to.
+we're going to use browsersync.io
+**inject  file changes.(uses Sockets.io to do this)
+**Synchronize actions accross browsers
+	-click
+	-form
+	-location
+	-scroll
+we allso want to keep ALL browsers in sync.
+Which isnt just that it reloads all of the browsers at the same time,
+but that we can scroll in multiple browsers at the same time as mentioned above,
+this makes it possible to test several browsers at the same time.
+An example of browserSync configuration:
+
+browserSync({
+    proxy:'localhost:8181',
+    port:3000,
+    files:['./src/client/**/*'],
+    ghostMode:{
+	clicks:true,
+	location:false,
+	forms:true,
+	scroll:true
+    },
+    injectChanges:true,
+    reloadDelay:1000
+});
+
+For the overviews sake, we have nodemon setup so that it reloads whenever files in the server folder changes,
+nodemon has a bunch of events, one event is when the server started successfully, this event we simply hook 
+into and start the browser sync, that listens for client file changes.
+
+Recap:
+
+BrowserSync, injecting files, Watches : Automated browser synchronization, inject css and reload for javascript, prepare code for injection.
+
+---------------------------------------------------------------------------------------------
+Building assets and keeping organized:
+Look ahead:
+	-listing the many tasks
+	-Establish our build folder
+	-Compress images
+	-copy images and fonts to build folder
+
+
+**Listing the many tasks:
+	-List tasks
+	-gulp-task-listing
+	-Default task allows us to simply type gulp
+the plugin for image compression(there is alot more other image processing plugins available aswell):
+sindresorhus/gulp-imagemin
+	we're going to:
+	-get gulp-imagemin & gulp-task-listing
+	-Compress images
+	-adjust optimization levels
+	-Add plugins for additional image processing.
+
+----------------------------------------------------------------------------------------------------------------
+some react/express/node tutorial on setting it up:
+
+
+ npm install --save-dev react browserify reactify vinyl-source-stream
